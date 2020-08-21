@@ -40,7 +40,7 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="lexToken">The lexical token to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        public virtual bool TryMigrate(ref ILexToken lexToken, out string error)
+        public virtual bool TryMigrate(ILexToken lexToken, out string error)
         {
             if (lexToken is LexTokenToken token)
             {
@@ -52,11 +52,11 @@ namespace ContentPatcher.Framework.Migrations
                 }
 
                 // check input arguments
-                if (token.InputArg != null)
+                if (token.HasInputArgs())
                 {
-                    for (int i = 0; i < token.InputArg.Value.Parts.Length; i++)
+                    foreach (ILexToken part in token.InputArgs.Parts)
                     {
-                        if (!this.TryMigrate(ref token.InputArg.Value.Parts[i], out error))
+                        if (!this.TryMigrate(part, out error))
                             return false;
                     }
                 }
@@ -71,15 +71,8 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="tokenStr">The tokenized string to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        public virtual bool TryMigrate(IParsedTokenString tokenStr, out string error)
+        public virtual bool TryMigrate(IManagedTokenString tokenStr, out string error)
         {
-            // tokens which need a higher version
-            for (int i = 0; i < tokenStr.LexTokens.Length; i++)
-            {
-                if (!this.TryMigrate(ref tokenStr.LexTokens[i], out error))
-                    return false;
-            }
-
             // no issue found
             error = null;
             return true;
@@ -91,7 +84,7 @@ namespace ContentPatcher.Framework.Migrations
         /// <returns>Returns whether migration succeeded.</returns>
         public bool TryMigrate(TokenizableJToken tokenStructure, out string error)
         {
-            foreach (IParsedTokenString str in tokenStructure.GetTokenStrings())
+            foreach (IManagedTokenString str in tokenStructure.GetTokenStrings())
             {
                 if (!this.TryMigrate(str, out error))
                     return false;

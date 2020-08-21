@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ContentPatcher.Framework.Conditions;
@@ -33,15 +32,15 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="lexToken">The lexical token to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        public override bool TryMigrate(ref ILexToken lexToken, out string error)
+        public override bool TryMigrate(ILexToken lexToken, out string error)
         {
-            if (!base.TryMigrate(ref lexToken, out error))
+            if (!base.TryMigrate(lexToken, out error))
                 return false;
 
             // 1.7 adds nested tokens
-            if (lexToken is LexTokenToken token && !token.Name.EqualsIgnoreCase("HasFile") && token.InputArg?.Parts.Any(p => p.Type == LexTokenType.Token) == true)
+            if (lexToken is LexTokenToken token && !token.Name.EqualsIgnoreCase("HasFile") && token.InputArgs?.Parts.Any(p => p.Type == LexTokenType.Token) == true)
             {
-                error = this.GetNounPhraseError($"using nested tokens like '{lexToken.Text}'");
+                error = this.GetNounPhraseError($"using nested tokens like '{lexToken}'");
                 return false;
             }
 
@@ -78,7 +77,7 @@ namespace ContentPatcher.Framework.Migrations
                         return false;
                     }
 
-                    if (patch.When != null && patch.When.Any(condition => condition.Value?.Contains("{{") == true && condition.Value?.IndexOf("HasFile", StringComparison.InvariantCultureIgnoreCase) == -1))
+                    if (patch.When != null && patch.When.Any(condition => condition.Value?.Contains("{{") == true && !condition.Value.ContainsIgnoreCase("HasFile")))
                     {
                         error = this.GetNounPhraseError("using tokens in condition values");
                         return false;

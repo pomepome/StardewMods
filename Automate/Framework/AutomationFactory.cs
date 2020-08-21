@@ -65,7 +65,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <param name="pullGemstonesFromJunimoHuts">Whether to pull gemstones out of Junimo huts.</param>
         public AutomationFactory(string[] connectors, bool automateShippingBin, IMonitor monitor, IReflectionHelper reflection, DataModel data, bool betterJunimosCompat, bool autoGrabberModCompat, bool pullGemstonesFromJunimoHuts)
         {
-            this.Connectors = new HashSet<string>(connectors, StringComparer.InvariantCultureIgnoreCase);
+            this.Connectors = new HashSet<string>(connectors, StringComparer.OrdinalIgnoreCase);
             this.AutomateShippingBin = automateShippingBin;
             this.Monitor = monitor;
             this.Reflection = reflection;
@@ -82,9 +82,9 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <returns>Returns an instance or <c>null</c>.</returns>
         public IAutomatable GetFor(SObject obj, GameLocation location, in Vector2 tile)
         {
-            // chest container
-            if (obj is Chest chest)
-                return new ChestContainer(chest, location, tile);
+            // chest container 
+            if (obj is Chest chest && chest.playerChest.Value)
+                return new ChestContainer(chest, location, tile, this.Reflection);
 
             // machine
             if (obj.ParentSheetIndex == 165)
@@ -162,6 +162,8 @@ namespace Pathoschild.Stardew.Automate.Framework
             // machine
             if (feature is FruitTree fruitTree)
                 return new FruitTreeMachine(fruitTree, location, tile);
+            if (feature is Bush bush && BushMachine.CanAutomate(bush))
+                return new BushMachine(bush, location);
 
             // connector
             if (this.IsConnector(feature))

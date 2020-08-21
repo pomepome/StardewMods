@@ -10,10 +10,8 @@ using Pathoschild.Stardew.LookupAnything.Framework.Targets;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.Characters;
 using StardewValley.Locations;
 using StardewValley.Menus;
-using StardewValley.Monsters;
 using StardewValley.TerrainFeatures;
 using SObject = StardewValley.Object;
 
@@ -25,23 +23,17 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         /*********
         ** Fields
         *********/
-        /// <summary>Provides metadata that's not available from the game data directly.</summary>
-        private readonly Metadata Metadata;
-
         /// <summary>Simplifies access to private game code.</summary>
         private readonly IReflectionHelper Reflection;
-
-        /// <summary>Provides translations stored in the mod folder.</summary>
-        private readonly ITranslationHelper Translations;
 
         /// <summary>Provides utility methods for interacting with the game code.</summary>
         private readonly GameHelper GameHelper;
 
-        /// <summary>The mod configuration.</summary>
-        private readonly ModConfig Config;
-
         /// <summary>The Json Assets API.</summary>
         private readonly JsonAssetsIntegration JsonAssets;
+
+        /// <summary>Constructs subjects for target values.</summary>
+        private readonly SubjectFactory Codex;
 
 
         /*********
@@ -51,21 +43,17 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         ** Constructors
         ****/
         /// <summary>Construct an instance.</summary>
-        /// <param name="metadata">Provides metadata that's not available from the game data directly.</param>
-        /// <param name="translations">Provides translations stored in the mod folder.</param>
         /// <param name="reflection">Simplifies access to private game code.</param>
         /// <param name="gameHelper">Provides utility methods for interacting with the game code.</param>
         /// <param name="jsonAssets">The Json Assets API.</param>
-        /// <param name="config">The mod configuration.</param>
-        public TargetFactory(Metadata metadata, ITranslationHelper translations, IReflectionHelper reflection, GameHelper gameHelper, JsonAssetsIntegration jsonAssets, ModConfig config)
+        /// <param name="codex">Constructs subjects for target values.</param>
+        public TargetFactory(IReflectionHelper reflection, GameHelper gameHelper, JsonAssetsIntegration jsonAssets, SubjectFactory codex)
         {
-            this.Metadata = metadata;
-            this.Translations = translations;
             this.Reflection = reflection;
             this.GameHelper = gameHelper;
             this.JsonAssets = jsonAssets;
             this.GameHelper = gameHelper;
-            this.Config = config;
+            this.Codex = codex;
         }
 
         /****
@@ -75,6 +63,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         /// <param name="location">The current location.</param>
         /// <param name="originTile">The tile from which to search for targets.</param>
         /// <param name="includeMapTile">Whether to allow matching the map tile itself.</param>
+        /// <remarks>Related to <see cref="SubjectFactory.GetSearchSubjects"/>.</remarks>
         public IEnumerable<ITarget> GetNearbyTargets(GameLocation location, Vector2 originTile, bool includeMapTile)
         {
             // NPCs
@@ -83,19 +72,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                 if (!this.GameHelper.CouldSpriteOccludeTile(npc.getTileLocation(), originTile))
                     continue;
 
-                TargetType type = TargetType.Unknown;
-                if (npc is Child || npc.isVillager())
-                    type = TargetType.Villager;
-                else if (npc is Horse)
-                    type = TargetType.Horse;
-                else if (npc is Junimo)
-                    type = TargetType.Junimo;
-                else if (npc is Pet)
-                    type = TargetType.Pet;
-                else if (npc is Monster)
-                    type = TargetType.Monster;
-
-                yield return new CharacterTarget(this.GameHelper, type, npc, npc.getTileLocation(), this.Reflection);
+                yield return new CharacterTarget(this.GameHelper, this.Codex.GetSubjectType(npc), npc, npc.getTileLocation(), this.Reflection);
             }
 
             // animals
@@ -214,7 +191,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
             return (
                 from target in this.GetNearbyTargets(location, tile, includeMapTile)
                 where
-                    target.Type != TargetType.Unknown
+                    target.Type != SubjectType.Unknown
                     && target.IsAtTile(tile)
                 select target
             ).FirstOrDefault();
@@ -234,10 +211,10 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                 let spriteArea = target.GetWorldArea()
                 let isAtTile = target.IsAtTile(tile)
                 where
-                    target.Type != TargetType.Unknown
+                    target.Type != SubjectType.Unknown
                     && (isAtTile || spriteArea.Intersects(tileArea))
                 orderby
-                    target.Type != TargetType.Tile ? 0 : 1, // Tiles are always under anything else.
+                    target.Type != SubjectType.Tile ? 0 : 1, // Tiles are always under anything else.
                     spriteArea.Y descending,                // A higher Y value is closer to the foreground, and will occlude any sprites behind it.
                     spriteArea.X ascending                  // If two sprites at the same Y coordinate overlap, assume the left sprite occludes the right.
 
@@ -256,27 +233,18 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         /// <summary>Get metadata for a Stardew object at the specified position.</summary>
         /// <param name="player">The player performing the lookup.</param>
         /// <param name="location">The current location.</param>
-        /// <param name="lookupMode">The lookup target mode.</param>
         /// <param name="includeMapTile">Whether to allow matching the map tile itself.</param>
-        public ISubject GetSubjectFrom(Farmer player, GameLocation location, LookupMode lookupMode, bool includeMapTile)
+        /// <param name="hasCursor">Whether the player has a visible cursor.</param>
+        public ISubject GetSubjectFrom(Farmer player, GameLocation location, bool includeMapTile, bool hasCursor)
         {
             // get target
             ITarget target;
-            switch (lookupMode)
+            if (hasCursor)
+                target = this.GetTargetFromScreenCoordinate(location, Game1.currentCursorTile, this.GameHelper.GetScreenCoordinatesFromCursor(), includeMapTile);
+            else
             {
-                // under cursor
-                case LookupMode.Cursor:
-                    target = this.GetTargetFromScreenCoordinate(location, Game1.currentCursorTile, this.GameHelper.GetScreenCoordinatesFromCursor(), includeMapTile);
-                    break;
-
-                // in front of player
-                case LookupMode.FacingPlayer:
-                    Vector2 tile = this.GetFacingTile(Game1.player);
-                    target = this.GetTargetFromTile(location, tile, includeMapTile);
-                    break;
-
-                default:
-                    throw new NotSupportedException($"Unknown lookup mode '{lookupMode}'.");
+                Vector2 tile = this.GetFacingTile(player);
+                target = this.GetTargetFromTile(location, tile, includeMapTile);
             }
 
             // get subject
@@ -292,48 +260,48 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
             switch (target.Type)
             {
                 // NPC
-                case TargetType.Horse:
-                case TargetType.Junimo:
-                case TargetType.Pet:
-                case TargetType.Monster:
-                case TargetType.Villager:
-                    return new CharacterSubject(this.GameHelper, target.GetValue<NPC>(), target.Type, this.Metadata, this.Translations, this.Reflection, this.Config.ProgressionMode);
+                case SubjectType.Horse:
+                case SubjectType.Junimo:
+                case SubjectType.Pet:
+                case SubjectType.Monster:
+                case SubjectType.Villager:
+                    return this.Codex.GetCharacter(target.GetValue<NPC>());
 
                 // player
-                case TargetType.Farmer:
-                    return new FarmerSubject(this.GameHelper, target.GetValue<Farmer>(), this.Translations);
+                case SubjectType.Farmer:
+                    return this.Codex.GetPlayer(target.GetValue<Farmer>());
 
                 // animal
-                case TargetType.FarmAnimal:
-                    return new FarmAnimalSubject(this.GameHelper, target.GetValue<FarmAnimal>(), this.Translations);
+                case SubjectType.FarmAnimal:
+                    return this.Codex.GetFarmAnimal(target.GetValue<FarmAnimal>());
 
                 // crop
-                case TargetType.Crop:
-                    Crop crop = target.GetValue<HoeDirt>().crop;
-                    return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, this.GameHelper.GetObjectBySpriteIndex(crop.indexOfHarvest.Value), ObjectContext.World, knownQuality: false, fromCrop: crop);
+                case SubjectType.Crop:
+                    return this.Codex.GetCrop(target.GetValue<HoeDirt>().crop, ObjectContext.World);
 
-                // tree
-                case TargetType.FruitTree:
-                    return new FruitTreeSubject(this.GameHelper, target.GetValue<FruitTree>(), target.GetTile(), this.Translations);
-                case TargetType.WildTree:
-                    return new TreeSubject(this.GameHelper, target.GetValue<Tree>(), target.GetTile(), this.Translations);
+                // fruit tree
+                case SubjectType.FruitTree:
+                    return this.Codex.GetFruitTree(target.GetValue<FruitTree>(), target.GetTile());
 
-                // object
-                case TargetType.InventoryItem:
-                    return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, target.GetValue<Item>(), ObjectContext.Inventory, knownQuality: false);
-                case TargetType.Object:
-                    return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, target.GetValue<Item>(), ObjectContext.World, knownQuality: false);
+                // wild tree
+                case SubjectType.WildTree:
+                    return this.Codex.GetWildTree(target.GetValue<Tree>(), target.GetTile());
+
+                // inventory item
+                case SubjectType.InventoryItem:
+                case SubjectType.Object:
+                    return this.Codex.GetItem(target.GetValue<Item>(), target.Type == SubjectType.InventoryItem ? ObjectContext.Inventory : ObjectContext.World, knownQuality: false);
 
                 // building
-                case TargetType.Building:
-                    return new BuildingSubject(this.GameHelper, this.Metadata, target.GetValue<Building>(), target.GetSpritesheetArea(), this.Translations, this.Reflection, this.Config.ProgressionMode);
+                case SubjectType.Building:
+                    return this.Codex.GetBuilding(target.GetValue<Building>(), target.GetSpritesheetArea());
 
-                case TargetType.Bush:
-                    return new BushSubject(this.GameHelper, target.GetValue<Bush>(), this.Translations, this.Reflection);
+                case SubjectType.Bush:
+                    return this.Codex.GetBush(target.GetValue<Bush>());
 
                 // tile
-                case TargetType.Tile:
-                    return new TileSubject(this.GameHelper, Game1.currentLocation, target.GetValue<Vector2>(), this.Translations);
+                case SubjectType.Tile:
+                    return this.Codex.GetTile(Game1.currentLocation, target.GetValue<Vector2>());
             }
 
             return null;
@@ -369,25 +337,25 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                         // get villager with a birthday on that date
                         NPC target = this.GameHelper.GetAllCharacters().FirstOrDefault(p => p.Birthday_Season == Game1.currentSeason && p.Birthday_Day == selectedDay);
                         if (target != null)
-                            return new CharacterSubject(this.GameHelper, target, TargetType.Villager, this.Metadata, this.Translations, this.Reflection, this.Config.ProgressionMode);
+                            return this.Codex.GetCharacter(target);
                     }
                     break;
 
                 // chest
                 case MenuWithInventory inventoryMenu:
                     {
-                        Item item = inventoryMenu.hoveredItem;
+                        Item item = Game1.player.CursorSlotItem ?? inventoryMenu.heldItem ?? inventoryMenu.hoveredItem;
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
                     }
                     break;
 
                 // inventory
                 case InventoryPage inventory:
                     {
-                        Item item = this.Reflection.GetField<Item>(inventory, "hoveredItem").GetValue();
+                        Item item = Game1.player.CursorSlotItem ?? this.Reflection.GetField<Item>(inventory, "hoveredItem").GetValue();
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
                     }
                     break;
 
@@ -407,7 +375,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                             {
                                 int itemID = Convert.ToInt32(component.name.Split(' ')[0]);
                                 SObject obj = new SObject(itemID, 1);
-                                return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, obj, ObjectContext.Inventory, knownQuality: false);
+                                return this.Codex.GetItem(obj, ObjectContext.Inventory, knownQuality: false);
                             }
                         }
                     }
@@ -419,12 +387,12 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                         // player inventory item
                         Item item = this.Reflection.GetField<Item>(crafting, "hoverItem").GetValue();
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
 
                         // crafting recipe
                         CraftingRecipe recipe = this.Reflection.GetField<CraftingRecipe>(crafting, "hoverRecipe").GetValue();
                         if (recipe != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, recipe.createItem(), ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(recipe.createItem(), ObjectContext.Inventory);
                     }
                     break;
 
@@ -448,25 +416,35 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                             if (socialID is long playerID)
                             {
                                 Farmer player = Game1.getFarmer(playerID);
-                                return new FarmerSubject(this.GameHelper, player, this.Translations);
+                                return this.Codex.GetPlayer(player);
                             }
                             else if (socialID is string villagerName)
                             {
                                 NPC npc = this.GameHelper.GetAllCharacters().FirstOrDefault(p => p.isVillager() && p.Name == villagerName);
                                 if (npc != null)
-                                    return new CharacterSubject(this.GameHelper, npc, TargetType.Villager, this.Metadata, this.Translations, this.Reflection, this.Config.ProgressionMode);
+                                    return this.Codex.GetCharacter(npc);
                             }
                         }
                     }
                     break;
 
+                // profile tab
                 case ProfileMenu profileMenu:
                     {
+                        // hovered item
                         Item item = profileMenu.hoveredItem;
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
+
+                        // NPC
+                        if (profileMenu.GetCharacter() is NPC npc)
+                            return this.Codex.GetCharacter(npc);
                         break;
                     }
+
+                // skills tab
+                case SkillsPage _:
+                    return this.Codex.GetPlayer(Game1.player);
 
                 // Community Center bundle menu
                 case JunimoNoteMenu bundleMenu:
@@ -475,7 +453,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                         {
                             Item item = this.Reflection.GetField<Item>(menu, "hoveredItem").GetValue();
                             if (item != null)
-                                return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                                return this.Codex.GetItem(item, ObjectContext.Inventory);
                         }
 
                         // list of required ingredients
@@ -487,7 +465,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                                 var ingredient = bundle.ingredients[i];
                                 var item = this.GameHelper.GetObjectBySpriteIndex(ingredient.index, ingredient.stack);
                                 item.Quality = ingredient.quality;
-                                return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                                return this.Codex.GetItem(item, ObjectContext.Inventory);
                             }
                         }
 
@@ -495,7 +473,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                         foreach (ClickableTextureComponent slot in bundleMenu.ingredientSlots)
                         {
                             if (slot.item != null && slot.containsPoint((int)cursorPos.X, (int)cursorPos.Y))
-                                return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, slot.item, ObjectContext.Inventory, knownQuality: true);
+                                return this.Codex.GetItem(slot.item, ObjectContext.Inventory);
                         }
                     }
                     break;
@@ -510,7 +488,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                             var slots = this.Reflection.GetProperty<List<LoadGameMenu.MenuSlot>>(loadMenu, "MenuSlots").GetValue();
                             LoadGameMenu.SaveFileSlot slot = slots[index] as LoadGameMenu.SaveFileSlot;
                             if (slot?.Farmer != null)
-                                return new FarmerSubject(this.GameHelper, slot.Farmer, this.Translations, isLoadMenu: true);
+                                return this.Codex.GetPlayer(slot.Farmer, isLoadMenu: true);
                         }
                     }
                     break;
@@ -520,9 +498,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                     {
                         ISalable entry = shopMenu.hoveredItem;
                         if (entry is Item item)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
                         if (entry is MovieConcession snack)
-                            return new MovieSnackSubject(this.GameHelper, this.Translations, snack);
+                            return this.Codex.GetMovieSnack(snack);
                     }
                     break;
 
@@ -543,7 +521,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                         // get hovered item
                         Item item = Game1.player.Items[index];
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
                     }
                     break;
 
@@ -552,7 +530,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
                     {
                         Item item = this.Reflection.GetField<Item>(menu, "HoveredItem", required: false)?.GetValue(); // ChestsAnywhere
                         if (item != null)
-                            return new ItemSubject(this.GameHelper, this.Translations, this.Config.ProgressionMode, item, ObjectContext.Inventory, knownQuality: true);
+                            return this.Codex.GetItem(item, ObjectContext.Inventory);
                     }
                     break;
             }

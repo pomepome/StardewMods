@@ -1,6 +1,110 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.27.4
+Released 02 August 2020.
+
+* Fixed string sorting/comparison for some special characters.
+
+## 1.27.3
+Released 21 July 2020.
+
+* Fixed error looking up items when some item data is invalid.
+* Fixed incorrect color for sturgeon roe image.
+
+## 1.27.2
+Released 03 July 2020.
+
+* Fixed display for tailored hat recipes.
+* Fixed the search key working during cutscenes or when a menu is already open.
+* Fixed spawn rules not showing "mine level X" matched when you're on that mine level.
+* Fixed error looking up custom NPCs with invalid birthday data.
+* Improved translations. Thanks to AndyAllanPoe (updated Italian) and Rittsuka (updated Portuguese)!
+
+## 1.27.1
+Released 02 May 2020.
+
+* Fixed compatibility issue with Mega Storage in 1.27.
+
+## 1.27
+Released 02 May 2020.
+
+* The lookup menu is now centered again. (It will fallback to non-centered mode only if needed for compatibility.)
+* Improved compatibility with custom NPC mods (including mods which replace non-social NPCs with social ones).
+* Improved item scanning (used for 'number owned' and gift taste fields):
+  * now includes nested items (e.g. chests in chests in chests);
+  * now includes tool attachments;
+  * now searches within some mod containers (e.g. bags);
+  * fixed some spawned items incorrectly counted as owned (e.g. weeds and stones).
+* Improved debug field formatting for `npc.currentMarriageDialogue`.
+* Fixed 'number crafted' including some incorrect recipes.
+* Fixed placed and held torches counted as different items.
+* Fixed cursor incorrectly detected on Android in some cases.
+* Fixed rare 'scissor rectangle is invalid' error with search menu.
+* Fixed issue where closing the search menu with the default key bindings could trigger a lookup after the menu closes.
+* Improved translations. Thanks to Andites (updated Russian) and niniack (updated Chinese)!
+
+## 1.26
+Released 09 March 2020.
+
+* Added search feature (thanks to collaboration with mattfeldman!).
+* Added support for multi-key bindings (like `LeftShift + F1`).
+* Added contextual lookups for better controller/mobile support:
+  * When there's no cursor (e.g. when playing with a controller or mobile), Lookup Anything automatically finds the most relevant match instead of looking under the cursor. For example, that may be what's in front of the player, the item picked up in a menu, etc.
+  * Added item lookup when holding an item in a chest/inventory menu.
+  * Added NPC lookup from their profile page (when the cursor isn't over an item).
+  * Added player lookup from the skills tab.
+  * Removed `ToggleLookupInFrontOfPlayer` option in `config.json`. If you edited it, your value will be merged into `ToggleLookup` automatically next time you launch the game.
+* Fixed some vanilla recipes not shown in lookups when Producer Framework Mod packs are installed.
+* Improved translations. Thanks to Jeardius (updated German), Hesper (updated Korean), and mael-belval (updated French)!
+
+## 1.25.2
+Released 03 February 2020.
+
+* Fixed 'needed for' shown for incorrect item types in some cases.
+* Fixed some Producer Framework Mod recipes not shown correctly.
+
+## 1.25.1
+Released 02 February 2020.
+
+* Errors in Producer Framework Mod integration can no longer break lookups.
+* Fixed errors reading some Producer Framework Mod recipes.
+
+## 1.25
+Released 01 February 2020.
+
+* Added support for most custom machine recipes from Producer Framework Mod (thanks to Digus!).
+* Added number owned to tool/weapon lookups.
+* When a fish pond drop is guaranteed, further drops are now crossed out instead of hidden.
+* Fixed bushes & fruit trees showing next fruit tomorrow on the last day of their season.
+* Fixed items owned count not including child/horse hats, items in dressers, and equipped items.
+* Fixed a missing translation for non-English players.
+* Fixed fish spawn location names not being translated.
+* Improved translations. Thanks to asqwedcxz741 (updated Chinese) and corrinr (updated Spanish)!
+
+## 1.24
+Released 27 December 2019.
+
+* Added fish spawn rules to fish lookups.
+* Added fish pond drops to fish lookups.
+* Added option to highlight item gift tastes that haven't been revealed in the NPC profile yet.
+* Revamped fish pond lookups to show locked drops and make the selection process more clear.
+* Fixed pet lookups showing untranslated 'cat' or 'dog' type.
+* Fixed hay in silos not counted towards number owned or when highlighting owned gifts.
+* Fixed lookup on Caroline's tea bush showing wrong "days ago" value for date planted.
+* Fixed item lookups sometimes showing wrong tailoring recipes.
+* Fixed missing/partial shirt icons in some cases.
+* Improved translations. Thanks to jahangmar (updated German), L30Bola (updated Portuguese), and PlussRolf (updated Spanish)!
+
+## 1.23.1
+Released 15 December 2019.
+
+* Updated for recent versions of Json Assets.
+* Fixed lookup on Haunted Skulls.
+* Fixed lookup on Caroline's tea bush.
+* Fixed rare issue where the HUD isn't restored when the lookup menu is force-replaced by another menu.
+* Improved translations. Thanks to LeecanIt (added Italian)!
+
 ## 1.23
 Released 26 November 2019.
 
@@ -139,7 +243,7 @@ Released 14 February 2018.
 
 * Updated to SMAPI 2.4.
 * Added support for furniture.
-* Added support for custom machines and objects from Custom Farming Redux 2.3.6+.
+* Added support for custom machines and objects from Custom Farming Redux.
 * Fixed debug key working when a menu is open.
 * Fixed typo in debug interface.
 * Improved translations. Thanks to Husky110 (German) and yuwenlan (Chinese)!

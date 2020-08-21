@@ -1,6 +1,165 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.17.1
+Released 19 August 2020.
+
+* Made 'multiple patches want to load asset' errors more user-friendly.
+* Fixed error in some cases when warping to a new location as a farmhand in multiplayer.
+* Fixed error editing an image previously loaded through the Scale Up mod.
+
+## 1.17
+Released 16 August 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/40495753).
+
+* Patches can now optionally [update on location change](docs/author-guide.md#update-rate), including all tokens (not only location-specific tokens).
+* Patches can now resize maps automatically using `Action: EditMap` (just patch past the bottom or right edges).
+* Added `TargetPathOnly` token (the target field value for the current patch, without the filename).
+* Added [`patch reload`](docs/author-guide.md#patch-reload) console command (thanks to spacechase0!).
+* Added troubleshooting hints related to update rate in `patch summary` console command.
+* Removed legacy token API obsolete since Content Patcher 1.12.
+* Fixed ambiguous-method detection in advanced API.
+* Internal changes to prepare for realtime content updates.
+
+**Update note for mod authors:**  
+If you use the `LocationName` or `IsOutdoors` token/condition, updating the `Format` field to
+`1.17.0` or later requires changes to your `content.json`. See the
+[migration guide](docs/author-migration-guide.md) for more info.
+
+## 1.16.4
+Released 12 August 2020.
+
+* Fixed 'collection was modified' error when unloading `Action: Include` patches.
+
+## 1.16.3
+Released 08 August 2020.
+
+* Fixed incorrect token input validation in some cases with 1.16.2.
+
+## 1.16.2
+Released 08 August 2020.
+
+* Fixed patches not always unapplied when an `Include` patch changes.
+* Fixed error using some tokens within the `contains` input argument.
+* Fixed broken error message when multiple load patches apply in 1.16.
+
+## 1.16.1
+Released 03 August 2020.
+
+* Fixed some patches not applied correctly in 1.16.
+
+## 1.16
+Released 02 August 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/40028155).
+
+* Added [an `Include` action](docs/author-guide.md#include) to load patches from another JSON file. That includes full token support, so you can load files dynamically or conditionally.
+* Randomization is now consistent between players, regardless of installed content packs.
+* Content packs containing `null` patches are no longer disabled; instead those patches are now skipped with a warning.
+* Improved performance when updating very large content packs.
+* Fixed boolean/numeric fields rejecting tokens with surrounding whitespace like `"  {{SomeToken}}  "`.
+* Fixed auto-generated patch names not normalising path separators.
+* Fixed `patch summary` showing duplicate target paths in some cases.
+* Fixed string sorting/comparison for some special characters.
+* Internal changes to prepare for realtime content updates.
+
+**Update note for mod authors:**  
+Using `"Action": "EditData"` with a `FromFile` field is now deprecated, though it still works.
+Migrating to an `"Action": "Include"` patch is recommended; it's more flexible and works more
+intuitively. (That doesn't apply to `"Action": "EditData"` patches without a `FromFile` field.)
+
+## 1.15.2
+Released 21 July 2020.
+
+* Fixed error using `HasFile` with filenames containing commas.
+* Fixed broken patches preventing other patches from being applied/updated in rare cases.
+* Internal changes to prepare for 1.16.
+
+## 1.15.1
+Released 06 July 2020.
+
+* Fixed error loading pre-1.15 content packs that use a token with empty input arguments like `{{token:}}`.
+
+## 1.15
+Released 04 July 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/38962480).
+
+* Added [named token arguments](docs/author-tokens-guide.md#global-input-arguments).
+* Added a universal `|contains=` argument to search token values.
+* Added a universal `|inputSeparator=` argument to allow commas in input values using a custom separator.
+* Added a `key` argument to `{{Random}}`.
+* Several [player tokens](docs/author-tokens-guide.md#player) now let you choose whether to check the host player, current player, or both.
+* Added `HasConversationTopic` token.
+* Reduced trace logs when a mod adds many custom tokens.
+* Fixed custom tokens added by other mods able to break Content Patcher in some cases.
+* Fixed support for tokens in a `From`/`ToArea`'s `Width` and `Height` fields.
+* Fixed support for tokens in a `.json` file loaded through `Action: EditData` with a `FromFile` path containing tokens.
+* Fixed format migrations not applied to tokens within JSON objects.
+* Fixed multiple input arguments allowed for tokens that only recognize one (like `{{HasFile: fileA.png, fileB.png}}`). Doing so now shows an error.
+
+**Update note for mod authors:**  
+Updating the `Format` field to `1.15.0` or later requires changes to your `content.json`. See the [migration guide](docs/author-migration-guide.md) for more info.
+
+## 1.14.1
+Released 14 May 2020.
+
+* Fixed patches not updating correctly in 1.14 when a changed token is only in their `FromFile` field.
+
+## 1.14
+Released 02 May 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/whats-new-in-1-36931803).
+
+* Added `Round` token.
+* Added `FromFile` patch token (e.g. so you can do `"HasFile:{{FromFile}}": true`).
+* The `patch export` command can now export assets that haven't been loaded yet.
+* Fixed `Range` token excluding its upper bound.
+* Fixed validation for `Target` fields containing `{{Target}}` and `{{TargetWithoutPath}}` tokens.
+* Fixed validation for `Target` fields not shown in `patch summary` in some cases.
+* Fixed 'file does not exist' error when the `FromFile` path is ready and doesn't exist, but the patch is disabled by a patch-specific condition.
+* Fixed error when removing a map tile without edits.
+* Fixed token handling in map tile/property fields.
+* Fixed format validation for 1.13 features not applied.
+
+## 1.13
+Released 09 March 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/whats-new-in-1-34749703).
+
+* Added support for arithmetic expressions.
+* Added support for editing map tiles.
+* Added support for editing map tile properties.
+* Added support for multi-key bindings (like `LeftShift + F3`).
+* `EditMap` patches now also copy layers and layer properties from the source map (thanks to mouse!).
+* Patches are now applied in the order listed more consistently.
+* Improved logic for matching tilesheets when applying a map patch.
+* Fixed incorrect warning when using `HasWalletItem` token in 1.12.
+
+## 1.12
+Released 01 February 2020. See the [release highlights for mod authors](https://www.patreon.com/posts/whats-new-in-1-33691875).
+
+* Added advanced API to let other mods add more flexible tokens.
+* Added support for mod-provided tokens in `EditData` fields.
+* Reduced trace logs when another mod adds a custom token.
+* The `patch export` command now exports the asset cached by the game, instead of trying to load it.
+* Fixed dialogue and marriage dialogue changes not applied until the next day (via SMAPI 3.2).
+* Fixed error when a data model patch uses an invalid token in its fields.
+* Fixed whitespace between tokens being ignored (e.g. `{{season}} {{day}}` now outputs `Summer 14` instead of `Summer14`).
+
+## 1.11.1
+Released 27 December 2019.
+
+* Mitigated `OutOfMemoryException` issue for some players. (The underlying issue in SMAPI is still being investigated.)
+* Reduced performance impact in some cases when warping with content packs which have a large number of seasonal changes.
+* Fixed patches being reapplied unnecessarily in some cases.
+* Fixed token validation not applied to the entire token string in some cases.
+* Fixed `Random` tokens being rerolled when warping if the patch is location-dependent.
+* Fixed error when married to an NPC that's not loaded.
+
+## 1.11
+Released 15 December 2019. See the [release highlights for mod authors](https://www.patreon.com/posts/whats-new-in-1-1-32382030).
+
+* Added `Lowercase` and `Uppercase` tokens.
+* `Random` tokens can have 'pinned keys' to support many new scenarios (see readme).
+* `Random` tokens are now bounded for immutable choices (e.g. you can use them in numeric fields if all their choices are numeric).
+* `FromArea` and `ToArea` fields can now use tokens (thanks to spacechase0!).
+* Optimized asset loading/editing a bit.
+* Fixed warning when an `EditData` patch references a file that doesn't exist when that's checked with a `HasFile` condition.
+* Fixed `HasFile` token being case-sensitive on Linux/Mac.
+* Fixed error if a content pack has a null patch.
+
 ## 1.10.1
 Released 02 December 2019.
 
@@ -8,7 +167,7 @@ Released 02 December 2019.
 * Fixed error when an `EditData` patch uses tokens in `FromFile` that aren't available.
 
 ## 1.10
-Released 26 November 2019.
+Released 26 November 2019. See the [release highlights for mod authors](https://www.patreon.com/posts/whats-new-in-1-1-32382030).
 
 * Updated for Stardew Valley 1.4, including new farm type.
 * Added new tokens:
@@ -23,7 +182,7 @@ Released 26 November 2019.
 * Added `patch parse` console command, which parses an arbitrary tokenizable string and shows the result.
 * Added new 'current changes' list for each content pack to `patch summary` output.
 * Added world state IDs to the `HasFlag` token.
-* Added [`manifest.json` and `content.json` validator](https://github.com/Pathoschild/StardewMods/tree/develop/ContentPatcher#schema-validator) for content pack authors.
+* Added [`manifest.json` and `content.json` validator](docs/author-guide.md#schema-validator) for content pack authors.
 * Content packs can now use mod-provided tokens without a dependency if the patch has an appropriate `HasMod` condition.
 * Improved error if a content pack sets a `FromFile` path with invalid characters.
 * Fixed `Hearts` and `Relationship` tokens not working for unmet NPCs. They now return `0` and `Unmet` respectively.
@@ -105,10 +264,8 @@ Released 08 May 2019.
 * Fixed config schema issues logged as `Debug` instead of `Warning`.
 * Removed support for the condition value subkey syntax (like `"Relationship": "Abigail:Married"` instead of `"Relationship:Abigail": "Married"`). This only affects one content pack on Nexus.
 
-**Update note for mod authors:**
-* The `ConfigSchema` field changes when you update your format to 1.7:
-  * `AllowValues` is no longer required. If you omit it, the config field will allow _any_ value.
-  * If you omit `Default`, the default is now blank instead of the first `AllowValues` value.
+**Update note for mod authors:**  
+Updating the `Format` field to `1.7.0` or later requires changes to your `content.json`. See the [migration guide](docs/author-migration-guide.md) for more info.
 
 ## 1.6.5
 Released 06 April 2019.
@@ -160,8 +317,8 @@ Released 08 December 2018.
 * Fixed token strings not validated for format version compatibility.
 * Fixed some 1.5 tokens not validated for format version compatibility.
 
-**Update note for mod authors:**
-* The `Weather` token now returns `Wind` on windy days instead of `Sun`. Existing content packs with `"Format": "1.5"` or earlier should work fine, since Content Patcher will adjust their conditions. Content packs which target version 1.6 or later should handle the new weather value.
+**Update note for mod authors:**  
+Updating the `Format` field to `1.6.0` or later requires changes to your `content.json`. See the [migration guide](docs/author-migration-guide.md) for more info.
 
 ## 1.5.3
 Released 08 November 2018.

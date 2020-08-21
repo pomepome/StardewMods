@@ -24,8 +24,8 @@ namespace ContentPatcher.Framework.Conditions
         /// <summary>The token name in the context.</summary>
         public string Name { get; }
 
-        /// <summary>The token input argument, if any.</summary>
-        public ITokenString Input { get; }
+        /// <summary>The token input arguments.</summary>
+        public IInputArguments Input { get; }
 
         /// <summary>The token values for which this condition is valid.</summary>
         public ITokenString Values { get; }
@@ -39,19 +39,22 @@ namespace ContentPatcher.Framework.Conditions
         /// <summary>Whether the instance is valid for the current context.</summary>
         public bool IsReady => this.Contextuals.IsReady && this.State.IsReady;
 
+        /// <summary>Whether the condition matches the current context.</summary>
+        public bool IsMatch { get; set; }
+
 
         /*********
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="name">The token name in the context.</param>
-        /// <param name="input">The token input argument, if any.</param>
+        /// <param name="input">The token input arguments.</param>
         /// <param name="values">The token values for which this condition is valid.</param>
-        public Condition(string name, ITokenString input, ITokenString values)
+        public Condition(string name, IManagedTokenString input, IManagedTokenString values)
         {
             // save values
             this.Name = name;
-            this.Input = input;
+            this.Input = new InputArguments(input);
             this.Values = values;
             this.Contextuals = new AggregateContextual()
                 .Add(input)
@@ -62,30 +65,11 @@ namespace ContentPatcher.Framework.Conditions
                 this.CurrentValues = this.Values.SplitValuesUnique();
         }
 
-        /// <summary>Get whether the condition has a non-empty input argument.</summary>
-        public bool HasInput()
-        {
-            return this.Input != null && this.Input.IsMeaningful();
-        }
-
-
         /// <summary>Get whether the condition is for a given condition type.</summary>
         /// <param name="type">The condition type.</param>
         public bool Is(ConditionType type)
         {
             return this.Name.EqualsIgnoreCase(type.ToString());
-        }
-
-        /// <summary>Whether the condition matches.</summary>
-        /// <param name="context">The condition context.</param>
-        public bool IsMatch(IContext context)
-        {
-            if (!this.IsReady)
-                return false;
-
-            return context
-                .GetValues(this.Name, this.Input, enforceContext: true)
-                .Any(value => this.CurrentValues.Contains(value));
         }
 
         /// <summary>Update the instance when the context changes.</summary>
@@ -95,6 +79,7 @@ namespace ContentPatcher.Framework.Conditions
         {
             // reset
             bool wasReady = this.IsReady;
+            bool wasMatch = this.IsMatch;
             this.State.Reset();
 
             // update contextuals
@@ -105,14 +90,21 @@ namespace ContentPatcher.Framework.Conditions
                 this.State.AddUnreadyTokens(this.Name);
 
             // update values
-            if (changed || wasReady != this.IsReady)
-            {
-                this.CurrentValues = this.IsReady
-                    ? this.Values.SplitValuesUnique()
-                    : new InvariantHashSet();
-                return true;
-            }
-            return false;
+            this.CurrentValues = this.IsReady
+                ? this.Values.SplitValuesUnique()
+                : new InvariantHashSet();
+
+            // update match
+            this.IsMatch =
+                this.IsReady
+                && context
+                    .GetValues(this.Name, this.Input, enforceContext: true)
+                    .Any(value => this.CurrentValues.Contains(value));
+
+            return
+                changed
+                || wasReady != this.IsReady
+                || wasMatch != this.IsMatch;
         }
 
         /// <summary>Get the token names used by this patch in its fields.</summary>

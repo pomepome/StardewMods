@@ -17,8 +17,11 @@ namespace ContentPatcher.Framework.Tokens
         /*********
         ** Accessors
         *********/
+        /// <summary>The token for which this value is registered.</summary>
+        public ManagedManualToken ParentToken { get; }
+
         /// <summary>The name of the token whose value to set.</summary>
-        public string Name { get; }
+        public string Name => this.ParentToken.ValueProvider.Name;
 
         /// <summary>The token value to set.</summary>
         public ITokenString Value { get; }
@@ -26,10 +29,10 @@ namespace ContentPatcher.Framework.Tokens
         /// <summary>The conditions that must match to set this value.</summary>
         public Condition[] Conditions { get; }
 
-        /// <summary>Whether the instance may change depending on the context.</summary>
+        /// <inheritdoc />
         public bool IsMutable => this.Contextuals.IsMutable;
 
-        /// <summary>Whether the instance is valid for the current context.</summary>
+        /// <inheritdoc />
         public bool IsReady => this.Contextuals.IsReady;
 
 
@@ -37,34 +40,32 @@ namespace ContentPatcher.Framework.Tokens
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="name">The name of the token whose value to set.</param>
+        /// <param name="parentToken">The token whose value to set.</param>
         /// <param name="value">The token value to set.</param>
         /// <param name="conditions">The conditions that must match to set this value.</param>
-        public DynamicTokenValue(string name, ITokenString value, IEnumerable<Condition> conditions)
+        public DynamicTokenValue(ManagedManualToken parentToken, IManagedTokenString value, IEnumerable<Condition> conditions)
         {
-            this.Name = name;
+            this.ParentToken = parentToken;
             this.Value = value;
             this.Conditions = conditions.ToArray();
             this.Contextuals = new AggregateContextual()
-                .Add(this.Value)
+                .Add(value)
                 .Add(this.Conditions);
         }
 
-        /// <summary>Update the instance when the context changes.</summary>
-        /// <param name="context">Provides access to contextual tokens.</param>
-        /// <returns>Returns whether the instance changed.</returns>
+        /// <inheritdoc />
         public bool UpdateContext(IContext context)
         {
             return this.Contextuals.UpdateContext(context);
         }
 
-        /// <summary>Get the token names used by this patch in its fields.</summary>
+        /// <inheritdoc />
         public IEnumerable<string> GetTokensUsed()
         {
             return this.Contextuals.GetTokensUsed();
         }
 
-        /// <summary>Get diagnostic info about the contextual instance.</summary>
+        /// <inheritdoc />
         public IContextualState GetDiagnosticState()
         {
             return this.Contextuals.GetDiagnosticState();

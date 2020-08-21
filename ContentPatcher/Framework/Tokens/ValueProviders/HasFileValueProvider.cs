@@ -13,25 +13,23 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders
         /*********
         ** Fields
         *********/
-        /// <summary>The mod folder from which to load assets.</summary>
-        private readonly string ModFolder;
+        /// <summary>Get whether a relative file path exists in the content pack.</summary>
+        private readonly Func<string, bool> RelativePathExists;
 
 
         /*********
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="modFolder">The absolute path to the mod folder.</param>
-        public HasFileValueProvider(string modFolder)
-            : base(ConditionType.HasFile, canHaveMultipleValuesForRoot: false)
+        /// <param name="relativePathExists">Get whether a relative file path exists in the content pack.</param>
+        public HasFileValueProvider(Func<string, bool> relativePathExists)
+            : base(ConditionType.HasFile, mayReturnMultipleValuesForRoot: false)
         {
-            this.ModFolder = modFolder;
-            this.EnableInputArguments(required: true, canHaveMultipleValues: false);
+            this.RelativePathExists = relativePathExists;
+            this.EnableInputArguments(required: true, mayReturnMultipleValues: false, maxPositionalArgs: null);
         }
 
-        /// <summary>Update the instance when the context changes.</summary>
-        /// <param name="context">Provides access to contextual tokens.</param>
-        /// <returns>Returns whether the instance changed.</returns>
+        /// <inheritdoc />
         public override bool UpdateContext(IContext context)
         {
             bool changed = !this.IsReady;
@@ -39,24 +37,19 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders
             return changed;
         }
 
-        /// <summary>Get the allowed values for an input argument (or <c>null</c> if any value is allowed).</summary>
-        /// <param name="input">The input argument, if applicable.</param>
-        /// <exception cref="InvalidOperationException">The input argument doesn't match this value provider, or does not respect <see cref="IValueProvider.AllowsInput"/> or <see cref="IValueProvider.RequiresInput"/>.</exception>
-        public override InvariantHashSet GetAllowedValues(ITokenString input)
+        /// <inheritdoc />
+        public override bool HasBoundedValues(IInputArguments input, out InvariantHashSet allowedValues)
         {
-            return input.IsMeaningful()
-                ? InvariantHashSet.Boolean()
-                : null;
+            allowedValues = InvariantHashSet.Boolean();
+            return true;
         }
 
-        /// <summary>Get the current values.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
-        /// <exception cref="InvalidOperationException">The input argument doesn't match this value provider, or does not respect <see cref="IValueProvider.AllowsInput"/> or <see cref="IValueProvider.RequiresInput"/>.</exception>
-        public override IEnumerable<string> GetValues(ITokenString input)
+        /// <inheritdoc />
+        public override IEnumerable<string> GetValues(IInputArguments input)
         {
-            this.AssertInputArgument(input);
+            this.AssertInput(input);
 
-            yield return this.GetPathExists(input).ToString();
+            yield return this.GetPathExists(input.GetPositionalSegment()).ToString();
         }
 
 
@@ -64,15 +57,15 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders
         ** Private methods
         *********/
         /// <summary>Get whether the given file path exists.</summary>
-        /// <param name="input">The relative file path.</param>
+        /// <param name="path">The relative file path.</param>
         /// <exception cref="InvalidOperationException">The path is not relative or contains directory climbing (../).</exception>
-        private bool GetPathExists(ITokenString input)
+        private bool GetPathExists(string path)
         {
-            if (!input.IsMeaningful() || !input.IsReady)
+            if (string.IsNullOrWhiteSpace(path))
                 return false;
 
             // get normalized path
-            string path = PathUtilities.NormalizePathSeparators(input.Value);
+            path = PathUtilities.NormalizePathSeparators(path);
 
             // validate
             if (Path.IsPathRooted(path))
@@ -81,8 +74,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders
                 throw new InvalidOperationException($"The {ConditionType.HasFile} token requires a relative path and cannot contain directory climbing (../).");
 
             // check file existence
-            string fullPath = Path.Combine(this.ModFolder, PathUtilities.NormalizePathSeparators(path));
-            return File.Exists(fullPath);
+            return this.RelativePathExists(path);
         }
     }
 }

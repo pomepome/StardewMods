@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Harmony;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Pathoschild.Stardew.SmallBeachFarm.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -11,6 +12,7 @@ using StardewValley.Objects;
 using xTile;
 using xTile.Dimensions;
 using xTile.Tiles;
+using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace Pathoschild.Stardew.SmallBeachFarm
 {
@@ -26,8 +28,21 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /// <summary>The relative path to the folder containing tilesheet variants.</summary>
         private readonly string TilesheetsPath = Path.Combine("assets", "tilesheets");
 
+        /// <summary>The relative path to the folder containing tilesheet overlays.</summary>
+        private readonly string OverlaysPath = Path.Combine("assets", "overlays");
+
         /// <summary>The mod configuration.</summary>
         private ModConfig Config;
+
+        /// <summary>The mod's hardcoded data.</summary>
+        private ModData Data;
+
+        /// <summary>The minimum value to consider non-transparent.</summary>
+        /// <remarks>On Linux/Mac, fully transparent pixels may have an alpha up to 4 for some reason.</remarks>
+        private const byte MinOpacity = 5;
+
+        /// <summary>A fake asset key prefix from which to load tilesheets.</summary>
+        private string FakeAssetPrefix => Path.Combine("Mods", this.ModManifest.UniqueID);
 
 
         /*********
@@ -39,51 +54,116 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         {
             // read config
             this.Config = helper.ReadConfig<ModConfig>();
+            this.Data = helper.Data.ReadJsonFile<ModData>("assets/data.json") ?? new ModData();
 
             // hook events
             helper.Events.Player.Warped += this.OnWarped;
             helper.Events.GameLoop.DayEnding += this.DayEnding;
 
             // hook Harmony patch
-            HarmonyInstance harmony = HarmonyInstance.Create(this.ModManifest.UniqueID);
-            FarmPatcher.Hook(harmony, this.Monitor, this.Config.UseBeachMusic, isSmallBeachFarm: location => this.IsSmallBeachFarm(location, out _), isOceanTile: this.IsOceanTile);
+            var harmony = HarmonyInstance.Create(this.ModManifest.UniqueID);
+            FarmPatcher.Hook(
+                harmony,
+                this.Monitor,
+                addCampfire: this.Config.AddCampfire,
+                useBeachMusic: this.Config.UseBeachMusic,
+                isSmallBeachFarm: location => this.IsSmallBeachFarm(location, out _),
+                getFishType: this.GetFishType
+            );
         }
 
         /// <summary>Get whether this instance can load the initial version of the given asset.</summary>
         /// <param name="asset">Basic metadata about the asset being loaded.</param>
         public bool CanLoad<T>(IAssetInfo asset)
         {
-            return asset.AssetNameEquals("Maps/Farm_Fishing");
+            return
+                asset.AssetNameEquals("Maps/Farm_Fishing")
+                || asset.AssetName.StartsWith(this.FakeAssetPrefix);
         }
 
         /// <summary>Load a matched asset.</summary>
         /// <param name="asset">Basic metadata about the asset being loaded.</param>
         public T Load<T>(IAssetInfo asset)
         {
+            // load map
             if (asset.AssetNameEquals("Maps/Farm_Fishing"))
             {
                 // load map
-                Map map = this.Helper.Content.Load<Map>(this.Config.EnableIslands
-                    ? "assets/SmallBeachFarmWithIslands.tbin"
-                    : "assets/SmallBeachFarm.tbin"
-                );
+                Map map = this.Helper.Content.Load<Map>("assets/farm.tmx");
+
+                // add islands
+                if (this.Config.EnableIslands)
+                {
+                    Map islands = this.Helper.Content.Load<Map>("assets/islands.tmx");
+                    this.Helper.Content.GetPatchHelper(map)
+                        .AsMap()
+                        .PatchMap(source: islands, targetArea: new Rectangle(0, 26, 56, 49));
+                }
+
+                // add campfire
+                if (this.Config.AddCampfire)
+                {
+                    var buildingsLayer = map.GetLayer("Buildings");
+                    buildingsLayer.Tiles[65, 23] = new StaticTile(buildingsLayer, map.GetTileSheet("zbeach"), BlendMode.Alpha, 157); // driftwood pile
+                    buildingsLayer.Tiles[64, 22] = new StaticTile(buildingsLayer, map.GetTileSheet("untitled tile sheet"), BlendMode.Alpha, 242); // campfire
+                }
 
                 // apply tilesheet recolors
-                DirectoryInfo compatFolder = this.GetCustomTilesheetFolder();
-                if (compatFolder != null)
+                string internalRootKey = this.Helper.Content.GetActualAssetKey(Path.Combine(this.TilesheetsPath, "_default"));
+                foreach (TileSheet tilesheet in map.TileSheets)
                 {
-                    this.Monitor.Log($"Applying map tilesheets from {Path.Combine(this.TilesheetsPath, compatFolder.Name)}.", LogLevel.Trace);
-                    foreach (TileSheet tilesheet in map.TileSheets)
-                    {
-                        string assetFileName = Path.GetFileName(tilesheet.ImageSource);
-                        if (File.Exists(Path.Combine(compatFolder.FullName, assetFileName)))
-                            tilesheet.ImageSource = this.Helper.Content.GetActualAssetKey(Path.Combine(this.TilesheetsPath, compatFolder.Name, assetFileName));
-                    }
+                    if (tilesheet.ImageSource.StartsWith(internalRootKey + Path.DirectorySeparatorChar))
+                        tilesheet.ImageSource = this.Helper.Content.GetActualAssetKey(Path.Combine(this.FakeAssetPrefix, Path.GetFileNameWithoutExtension(tilesheet.ImageSource)), ContentSource.GameContent);
                 }
 
                 return (T)(object)map;
             }
 
+            // load tilesheet
+            if (asset.AssetName.StartsWith(this.FakeAssetPrefix))
+            {
+                string filename = Path.GetFileName(asset.AssetName);
+                if (!Path.HasExtension(filename))
+                    filename += ".png";
+
+                // get relative path to load
+                string relativePath = new DirectoryInfo(this.GetFullPath(this.TilesheetsPath))
+                    .EnumerateDirectories()
+                    .FirstOrDefault(p => p.Name != "_default" && this.Helper.ModRegistry.IsLoaded(p.Name))
+                    ?.Name;
+                relativePath = Path.Combine(this.TilesheetsPath, relativePath ?? "_default", filename);
+
+                // load asset
+                Texture2D tilesheet = this.Helper.Content.Load<Texture2D>(relativePath);
+                var tilesheetPixels = new Lazy<Color[]>(() => this.GetPixels(tilesheet));
+
+                // apply overlays
+                foreach (DirectoryInfo folder in new DirectoryInfo(this.GetFullPath(this.OverlaysPath)).EnumerateDirectories())
+                {
+                    if (!this.Helper.ModRegistry.IsLoaded(folder.Name))
+                        continue;
+
+                    // get overlay
+                    Texture2D overlay = this.Helper.Content.Load<Texture2D>(Path.Combine(this.OverlaysPath, folder.Name, filename));
+                    Color[] overlayPixels = this.GetPixels(overlay);
+
+                    // apply
+                    Color[] target = tilesheetPixels.Value;
+                    for (int i = 0; i < overlayPixels.Length; i++)
+                    {
+                        Color pixel = overlayPixels[i];
+                        if (pixel.A >= ModEntry.MinOpacity)
+                            target[i] = overlayPixels[i];
+                    }
+                }
+
+                if (tilesheetPixels.IsValueCreated)
+                    tilesheet.SetData(tilesheetPixels.Value);
+
+                return (T)(object)tilesheet;
+            }
+
+            // unknown asset
             throw new NotSupportedException($"Unexpected asset '{asset.AssetName}'.");
         }
 
@@ -118,27 +198,25 @@ namespace Pathoschild.Stardew.SmallBeachFarm
             GameLocation beach = Game1.getLocationFromName("Beach");
             foreach (CrabPot pot in farm.objects.Values.OfType<CrabPot>())
             {
-                if (this.IsOceanTile(farm, (int)pot.TileLocation.X, (int)pot.TileLocation.Y))
+                if (this.GetFishType(farm, (int)pot.TileLocation.X, (int)pot.TileLocation.Y) == FishType.Ocean)
                     pot.DayUpdate(beach);
             }
         }
 
-        /// <summary>Get the folder from which to load tilesheets for compatibility with another mod, if applicable.</summary>
-        private DirectoryInfo GetCustomTilesheetFolder()
+        /// <summary>Get the full path for a relative path.</summary>
+        /// <param name="relative">The relative path.</param>
+        private string GetFullPath(string relative)
         {
-            // get root compatibility folder
-            DirectoryInfo compatFolder = new DirectoryInfo(Path.Combine(this.Helper.DirectoryPath, this.TilesheetsPath));
-            if (!compatFolder.Exists)
-                return null;
+            return Path.Combine(this.Helper.DirectoryPath, relative);
+        }
 
-            // get first folder matching an installed mod
-            foreach (DirectoryInfo folder in compatFolder.GetDirectories())
-            {
-                if (folder.Name != "_default" && this.Helper.ModRegistry.IsLoaded(folder.Name))
-                    return folder;
-            }
-
-            return null;
+        /// <summary>Get the pixel data for a texture.</summary>
+        /// <param name="texture">The texture asset.</param>
+        private Color[] GetPixels(Texture2D texture)
+        {
+            Color[] pixels = new Color[texture.Width * texture.Height];
+            texture.GetData(pixels);
+            return pixels;
         }
 
         /// <summary>Get whether the given location is the Small Beach Farm.</summary>
@@ -156,23 +234,35 @@ namespace Pathoschild.Stardew.SmallBeachFarm
             return false;
         }
 
-        /// <summary>Get whether a given position is ocean water.</summary>
+        /// <summary>Get the fish that should be available from the given tile.</summary>
         /// <param name="farm">The farm instance.</param>
         /// <param name="x">The tile X position.</param>
         /// <param name="y">The tile Y position.</param>
-        private bool IsOceanTile(Farm farm, int x, int y)
+        private FishType GetFishType(Farm farm, int x, int y)
         {
-            // check water property
+            // not water
+            // This should never happen since it's only called when catching a fish, but just in
+            // case fallback to the default farm logic.
             if (farm.doesTileHaveProperty(x, y, "Water", "Back") == null)
-                return false;
+                return FishType.River;
 
-            // check for beach tilesheet
+            // mixed fish area
+            if (this.Data.MixedFishAreas.Any(p => p.Contains(x, y)))
+            {
+                return Game1.random.Next(2) == 1
+                    ? FishType.Ocean
+                    : FishType.River;
+            }
+
+            // ocean or river
             string tilesheetId = farm.map
                 ?.GetLayer("Back")
                 ?.PickTile(new Location(x * Game1.tileSize, y * Game1.tileSize), Game1.viewport.Size)
                 ?.TileSheet
                 ?.Id;
-            return tilesheetId == "zbeach" || tilesheetId == "zbeach_farm";
+            return tilesheetId == "zbeach" || tilesheetId == "zbeach_farm"
+                ? FishType.Ocean
+                : FishType.River;
         }
 
         /// <summary>Get whether the player shouldn't be able to access a given position.</summary>

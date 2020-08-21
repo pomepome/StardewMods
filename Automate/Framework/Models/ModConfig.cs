@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using Pathoschild.Stardew.Automate.Framework.Machines.Buildings;
+
 namespace Pathoschild.Stardew.Automate.Framework.Models
 {
     /// <summary>The raw mod configuration.</summary>
@@ -19,9 +22,15 @@ namespace Pathoschild.Stardew.Automate.Framework.Models
         public ModConfigRawKeys Controls { get; set; } = new ModConfigRawKeys();
 
         /// <summary>The in-game object names through which machines can connect.</summary>
-        public string[] ConnectorNames { get; set; } = new string[0];
+        public string[] ConnectorNames { get; set; } = { "Workbench" };
 
         /// <summary>Options affecting compatibility with other mods.</summary>
         public ModCompatibilityConfig ModCompatibility { get; set; } = new ModCompatibilityConfig();
+
+        /// <summary>The priority order in which to process machines. Machines have a default priority of 0, and higher values are processed first.</summary>
+        public IDictionary<string, int> MachinePriority = new Dictionary<string, int>
+        {
+            [nameof(ShippingBinMachine)] = -1
+        };
     }
 }

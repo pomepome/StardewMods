@@ -1,12 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
-using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.TerrainFeatures;
-using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace Pathoschild.Stardew.DataLayers.Layers.Crops
 {
@@ -32,8 +30,9 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <summary>Construct an instance.</summary>
         /// <param name="translations">Provides translations in stored in the mod folder's i18n folder.</param>
         /// <param name="config">The data layer settings.</param>
-        public CropFertilizerLayer(ITranslationHelper translations, LayerConfig config)
-            : base(translations.Get("crop-fertilizer.name"), config)
+        /// <param name="monitor">Writes messages to the SMAPI log.</param>
+        public CropFertilizerLayer(ITranslationHelper translations, LayerConfig config, IInputHelper input, IMonitor monitor)
+            : base(translations.Get("crop-fertilizer.name"), config, input, monitor)
         {
             this.Legend = new[]
             {
@@ -45,15 +44,17 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
 
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
         /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override IEnumerable<TileGroup> Update(GameLocation location, Rectangle visibleArea, Vector2 cursorTile)
+        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
         {
-            Vector2[] visibleTiles = visibleArea.GetTiles().ToArray();
-
-            yield return this.GetGroup(location, visibleTiles, this.Fertilizer, HoeDirt.fertilizerLowQuality, HoeDirt.fertilizerHighQuality);
-            yield return this.GetGroup(location, visibleTiles, this.SpeedGro, HoeDirt.speedGro, HoeDirt.superSpeedGro);
-            yield return this.GetGroup(location, visibleTiles, this.RetainingSoil, HoeDirt.waterRetentionSoil, HoeDirt.waterRetentionSoilQUality);
+            return new[]
+            {
+                this.GetGroup(location, visibleTiles, this.Fertilizer, HoeDirt.fertilizerLowQuality, HoeDirt.fertilizerHighQuality),
+                this.GetGroup(location, visibleTiles, this.SpeedGro, HoeDirt.speedGro, HoeDirt.superSpeedGro),
+                this.GetGroup(location, visibleTiles, this.RetainingSoil, HoeDirt.waterRetentionSoil, HoeDirt.waterRetentionSoilQUality)
+            };
         }
 
 
@@ -67,7 +68,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <param name="states">The fertilizer states to match.</param>
         private TileGroup GetGroup(GameLocation location, Vector2[] visibleTiles, LegendEntry type, params int[] states)
         {
-            TileData[] crops = this.GetSoilByState(location, visibleTiles, states).Select(pos => new TileData(pos, type)).ToArray();
+            var crops = this
+                .GetSoilByState(location, visibleTiles, states)
+                .Select(pos => new TileData(pos, type));
+
             return new TileGroup(crops, outerBorderColor: type.Color);
         }
 

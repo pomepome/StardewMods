@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Pathoschild.Stardew.Common.Utilities;
@@ -27,34 +26,26 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders
         /// <param name="allowedValues">The allowed values (or <c>null</c> if any value is allowed).</param>
         /// <param name="canHaveMultipleValues">Whether the root may contain multiple values (or <c>null</c> to set it based on the given values).</param>
         public ImmutableValueProvider(string name, InvariantHashSet values, InvariantHashSet allowedValues = null, bool? canHaveMultipleValues = null)
-            : base(name, canHaveMultipleValuesForRoot: false)
+            : base(name, mayReturnMultipleValuesForRoot: false)
         {
             this.Values = values ?? new InvariantHashSet();
             this.AllowedRootValues = allowedValues?.Any() == true ? allowedValues : null;
-            this.CanHaveMultipleValuesForRoot = canHaveMultipleValues ?? (this.Values.Count > 1 || this.AllowedRootValues == null || this.AllowedRootValues.Count > 1);
-            this.EnableInputArguments(required: false, canHaveMultipleValues: false);
+            this.MayReturnMultipleValuesForRoot = canHaveMultipleValues ?? (this.Values.Count > 1 || this.AllowedRootValues == null || this.AllowedRootValues.Count > 1);
             this.IsMutable = false;
         }
 
-        /// <summary>Get the allowed values for an input argument (or <c>null</c> if any value is allowed).</summary>
-        /// <param name="input">The input argument, if applicable.</param>
-        /// <exception cref="InvalidOperationException">The input argument doesn't match this value provider, or does not respect <see cref="IValueProvider.AllowsInput"/> or <see cref="IValueProvider.RequiresInput"/>.</exception>
-        public override InvariantHashSet GetAllowedValues(ITokenString input)
+        /// <inheritdoc />
+        public override bool HasBoundedValues(IInputArguments input, out InvariantHashSet allowedValues)
         {
-            return input.IsMeaningful()
-                ? InvariantHashSet.Boolean()
-                : this.AllowedRootValues;
+            allowedValues = this.AllowedRootValues;
+            return allowedValues != null;
         }
 
-        /// <summary>Get the current values.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
-        /// <exception cref="InvalidOperationException">The input argument doesn't match this value provider, or does not respect <see cref="IValueProvider.AllowsInput"/> or <see cref="IValueProvider.RequiresInput"/>.</exception>
-        public override IEnumerable<string> GetValues(ITokenString input)
+        /// <inheritdoc />
+        public override IEnumerable<string> GetValues(IInputArguments input)
         {
-            this.AssertInputArgument(input);
+            this.AssertInput(input);
 
-            if (input.IsMeaningful())
-                return new[] { this.Values.Contains(input.Value).ToString() };
             return this.Values;
         }
     }

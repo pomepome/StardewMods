@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using ContentPatcher.Framework.Conditions;
-using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 
 namespace ContentPatcher.Framework.Patches
@@ -13,48 +12,38 @@ namespace ContentPatcher.Framework.Patches
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="logName">A unique name for this patch shown in log messages.</param>
-        /// <param name="contentPack">The content pack which requested the patch.</param>
+        /// <param name="path">The path to the patch from the root content file.</param>
         /// <param name="assetName">The normalized asset name to intercept.</param>
-        /// <param name="conditions">The conditions which determine whether this patch should be applied.</param>
         /// <param name="localAsset">The asset key to load from the content pack instead.</param>
+        /// <param name="conditions">The conditions which determine whether this patch should be applied.</param>
+        /// <param name="updateRate">When the patch should be updated.</param>
+        /// <param name="contentPack">The content pack which requested the patch.</param>
+        /// <param name="parentPatch">The parent patch for which this patch was loaded, if any.</param>
         /// <param name="normalizeAssetName">Normalize an asset name.</param>
-        public LoadPatch(string logName, ManagedContentPack contentPack, ITokenString assetName, IEnumerable<Condition> conditions, ITokenString localAsset, Func<string, string> normalizeAssetName)
-            : base(logName, PatchType.Load, contentPack, assetName, conditions, normalizeAssetName, fromAsset: localAsset) { }
+        public LoadPatch(LogPathBuilder path, IManagedTokenString assetName, IManagedTokenString localAsset, IEnumerable<Condition> conditions, UpdateRate updateRate, ManagedContentPack contentPack, IPatch parentPatch, Func<string, string> normalizeAssetName)
+            : base(
+                  path: path,
+                  type: PatchType.Load,
+                  assetName: assetName,
+                  conditions: conditions,
+                  updateRate: updateRate,
+                  contentPack: contentPack,
+                  parentPatch: parentPatch,
+                  normalizeAssetName: normalizeAssetName,
+                  fromAsset: localAsset
+                )
+        { }
 
-        /// <summary>Load the initial version of the asset.</summary>
-        /// <param name="asset">The asset to load.</param>
+        /// <inheritdoc />
         public override T Load<T>(IAssetInfo asset)
         {
-            T data = this.ContentPack.Load<T>(this.FromAsset);
-            return (data as object) is Texture2D texture
-                ? (T)(object)this.CloneTexture(texture)
-                : data;
+            return this.ContentPack.Load<T>(this.FromAsset);
         }
 
-        /// <summary>Get a human-readable list of changes applied to the asset for display when troubleshooting.</summary>
+        /// <inheritdoc />
         public override IEnumerable<string> GetChangeLabels()
         {
             yield return "replaced asset";
-        }
-
-
-        /*********
-        ** Private methods
-        *********/
-        /// <summary>Clone a texture.</summary>
-        /// <param name="source">The texture to clone.</param>
-        /// <returns>Cloning a texture is necessary when loading to avoid having it shared between different content managers, which can lead to undesirable effects like two players having synchronized texture changes.</returns>
-        private Texture2D CloneTexture(Texture2D source)
-        {
-            // get data
-            int[] pixels = new int[source.Width * source.Height];
-            source.GetData(pixels);
-
-            // create clone
-            Texture2D target = new Texture2D(source.GraphicsDevice, source.Width, source.Height);
-            target.SetData(pixels);
-            return target;
         }
     }
 }

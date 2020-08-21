@@ -6,6 +6,7 @@ using Pathoschild.Stardew.ChestsAnywhere.Framework;
 using Pathoschild.Stardew.ChestsAnywhere.Framework.Containers;
 using Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays;
 using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.Messages;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -52,9 +53,9 @@ namespace Pathoschild.Stardew.ChestsAnywhere
         {
             // initialize
             this.Config = helper.ReadConfig<ModConfig>();
-            this.Keys = this.Config.Controls.ParseControls(this.Monitor);
-            this.Data = helper.Data.ReadJsonFile<ModData>("data.json") ?? new ModData();
-            this.ChestFactory = new ChestFactory(helper.Data, helper.Reflection, helper.Translation, this.Config.EnableShippingBin);
+            this.Keys = this.Config.Controls.ParseControls(helper.Input, this.Monitor);
+            this.Data = helper.Data.ReadJsonFile<ModData>("assets/data.json") ?? new ModData();
+            this.ChestFactory = new ChestFactory(helper.Data, helper.Multiplayer, helper.Reflection, helper.Translation, this.Config.EnableShippingBin);
 
             // hook events
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
@@ -87,7 +88,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere
 
             // show multiplayer limitations warning
             if (!Context.IsMainPlayer)
-                this.Monitor.Log("Multiplayer limitations: you can only access chests in your current location (since you're not the main player). This is due to limitations in the game's sync logic.", LogLevel.Info);
+                this.Monitor.Log("Multiplayer limitations: you can only access chests in synced locations since you're not the main player. This is due to limitations in the game's sync logic.", LogLevel.Info);
         }
 
         /// <summary>The method invoked when the interface has finished rendering.</summary>
@@ -128,16 +129,22 @@ namespace Pathoschild.Stardew.ChestsAnywhere
         /// <param name="e">The event arguments.</param>
         private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
+            if (!Context.IsWorldReady)
+                return;
+
             try
             {
                 ModConfigKeys keys = this.Keys;
 
                 // open menu
-                if (keys.Toggle.Contains(e.Button))
+                if (keys.Toggle.JustPressedUnique())
                 {
                     // open if no conflict
                     if (Game1.activeClickableMenu == null)
-                        this.OpenMenu();
+                    {
+                        if (Context.IsPlayerFree && !Game1.player.UsingTool && !Game1.player.isEating)
+                            this.OpenMenu();
+                    }
 
                     // open from inventory if it's safe to close the inventory screen
                     else if (Game1.activeClickableMenu is GameMenu gameMenu && gameMenu.currentTab == GameMenu.inventoryTab)
@@ -196,11 +203,11 @@ namespace Pathoschild.Stardew.ChestsAnywhere
             switch (menu)
             {
                 case ItemGrabMenu chestMenu:
-                    this.CurrentOverlay = new ChestOverlay(chestMenu, chest, chests, this.Config, this.Keys, this.Helper.Events, this.Helper.Input, this.Helper.Translation, showAutomateOptions: isAutomateInstalled && chest.CanConfigureAutomate);
+                    this.CurrentOverlay = new ChestOverlay(chestMenu, chest, chests, this.Config, this.Keys, this.Helper.Events, this.Helper.Input, this.Helper.Reflection, this.Helper.Translation, showAutomateOptions: isAutomateInstalled && chest.CanConfigureAutomate);
                     break;
 
                 case ShopMenu shopMenu:
-                    this.CurrentOverlay = new ShopMenuOverlay(shopMenu, chest, chests, this.Config, this.Keys, this.Helper.Events, this.Helper.Input, this.Helper.Translation, showAutomateOptions: isAutomateInstalled && chest.CanConfigureAutomate);
+                    this.CurrentOverlay = new ShopMenuOverlay(shopMenu, chest, chests, this.Config, this.Keys, this.Helper.Events, this.Helper.Input, this.Helper.Reflection, this.Helper.Translation, showAutomateOptions: isAutomateInstalled && chest.CanConfigureAutomate);
                     break;
             }
             this.CurrentOverlay.OnChestSelected += selected =>
@@ -208,6 +215,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere
                 this.SelectedInventory = selected.Container.Inventory;
                 Game1.activeClickableMenu = selected.OpenMenu();
             };
+            this.CurrentOverlay.OnAutomateOptionsChanged += this.NotifyAutomateOfChestUpdate;
         }
 
         /// <summary>Open the menu UI.</summary>
@@ -226,7 +234,10 @@ namespace Pathoschild.Stardew.ChestsAnywhere
             // get chests
             RangeHandler range = this.GetCurrentRange();
             ManagedChest[] chests = this.ChestFactory.GetChests(range, excludeHidden: true).ToArray();
-            ManagedChest selectedChest = chests.FirstOrDefault(p => p.Container.IsSameAs(this.SelectedInventory)) ?? chests.FirstOrDefault();
+            ManagedChest selectedChest =
+                chests.FirstOrDefault(p => p.Container.IsSameAs(this.SelectedInventory))
+                ?? chests.FirstOrDefault(p => p.Location == Game1.currentLocation)
+                ?? chests.FirstOrDefault();
 
             // show error
             if (selectedChest == null)
@@ -238,6 +249,15 @@ namespace Pathoschild.Stardew.ChestsAnywhere
 
             // render menu
             Game1.activeClickableMenu = selectedChest.OpenMenu();
+        }
+
+        /// <summary>Notify Automate that a chest's automation options updated.</summary>
+        /// <param name="chest">The chest that was updated.</param>
+        private void NotifyAutomateOfChestUpdate(ManagedChest chest)
+        {
+            long hostId = Game1.MasterPlayer.UniqueMultiplayerID;
+            var message = new AutomateUpdateChestMessage { LocationName = chest.Location.Name, Tile = chest.Tile };
+            this.Helper.Multiplayer.SendMessage(message, nameof(AutomateUpdateChestMessage), modIDs: new[] { "Pathoschild.Automate" }, playerIDs: new[] { hostId });
         }
 
         /// <summary>Validate that the game versions match the minimum requirements, and return an appropriate error message if not.</summary>

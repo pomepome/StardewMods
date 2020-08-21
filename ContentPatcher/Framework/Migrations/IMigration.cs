@@ -28,13 +28,13 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="lexToken">The lexical token to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        bool TryMigrate(ref ILexToken lexToken, out string error);
+        bool TryMigrate(ILexToken lexToken, out string error);
 
         /// <summary>Migrate a tokenized string.</summary>
         /// <param name="tokenStr">The tokenized string to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        bool TryMigrate(IParsedTokenString tokenStr, out string error);
+        bool TryMigrate(IManagedTokenString tokenStr, out string error);
 
         /// <summary>Migrate a tokenized JSON structure.</summary>
         /// <param name="tokenStructure">The tokenized JSON structure to migrate.</param>

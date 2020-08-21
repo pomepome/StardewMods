@@ -1,4 +1,41 @@
 # Release notes
+## 1.12.1
+Released 03 July 2020.
+
+* Improved translations. Thanks to Rittsuka (updated Portuguese)!
+
+## 1.12
+Released 02 May 2020.
+
+* Added tile grid layer (when grid isn't enabled for all layers).
+* Fixed translations not updated after changing language until you restart the game.
+* Improved translations. Thanks to Annosz (added Hungarian), BURAKMESE (added Turkish), D0n-A (updated Russian), and misho104 (updated Japanese)!
+
+## 1.11
+Released 08 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + F3`).
+* Improved translations. Thanks to Enaium (updated Chinese), kchapelier (updated French), and xCarloC (updated Italian)!
+
+## 1.10
+Released 01 February 2020.
+
+* Added shortcut keys to switch to a specific layer while the overlay is open (thanks to Drachenkaetzchen!).
+* Added tilled group to tillable layer (thanks to Drachenkätzchen!).
+* Improved translations. Thanks to jahangmar (updated German), kchapelier (updated French), shirutan (updated Japanese), and VengelmBjorn (updated Russian)!
+
+## 1.9.1
+Released 27 December 2019.
+
+* Improved translations. Thanks to L30Bola (updated Portuguese) and PlussRolf (updated Spanish)!
+
+## 1.9
+Released 15 December 2019.
+
+* Added grid feature (disabled by default).
+* Fixed the `export` console command not exporting the full map.
+* Improved translations. Thanks to LeecanIt (added Italian)!
+
 ## 1.8
 Released 26 November 2019.
 

@@ -35,8 +35,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         /// <summary>Construct an instance.</summary>
         /// <param name="translations">Provides translations in stored in the mod folder's i18n folder.</param>
         /// <param name="config">The data layer settings.</param>
-        public BeeHouseLayer(ITranslationHelper translations, LayerConfig config)
-            : base(translations.Get("bee-houses.name"), config)
+        /// <param name="input">The API for checking input state.</param>
+        /// <param name="monitor">Writes messages to the SMAPI log.</param>
+        public BeeHouseLayer(ITranslationHelper translations, LayerConfig config, IInputHelper input, IMonitor monitor)
+            : base(translations.Get("bee-houses.name"), config, input, monitor)
         {
             this.Legend = new[]
             {
@@ -50,9 +52,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
 
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
         /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override IEnumerable<TileGroup> Update(GameLocation location, Rectangle visibleArea, Vector2 cursorTile)
+        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
         {
             // get bee houses
             Vector2[] searchTiles = visibleArea.Expand(this.MaxRadius).GetTiles().ToArray();
@@ -67,22 +70,32 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
                 .ToArray();
 
             // yield coverage
-            HashSet<Vector2> covered = new HashSet<Vector2>();
+            var covered = new HashSet<Vector2>();
+            var groups = new List<TileGroup>();
             foreach (SObject beeHouse in beeHouses)
             {
-                TileData[] tiles = this.GetCoverage(location, beeHouse.TileLocation).Select(pos => new TileData(pos, this.Covered)).ToArray();
+                TileData[] tiles = this
+                    .GetCoverage(location, beeHouse.TileLocation)
+                    .Select(pos => new TileData(pos, this.Covered))
+                    .ToArray();
+
                 foreach (TileData tile in tiles)
                     covered.Add(tile.TilePosition);
-                yield return new TileGroup(tiles, outerBorderColor: beeHouse.TileLocation == cursorTile ? this.SelectedColor : this.Covered.Color);
+
+                groups.Add(new TileGroup(tiles, outerBorderColor: beeHouse.TileLocation == cursorTile ? this.SelectedColor : this.Covered.Color));
             }
 
             // yield bee house being placed
             SObject heldObj = Game1.player.ActiveObject;
             if (this.IsBeeHouse(heldObj))
             {
-                TileData[] tiles = this.GetCoverage(location, cursorTile).Select(pos => new TileData(pos, this.Covered, color: this.Covered.Color * 0.75f)).ToArray();
-                yield return new TileGroup(tiles, outerBorderColor: this.SelectedColor, shouldExport: false);
+                var tiles = this
+                    .GetCoverage(location, cursorTile)
+                    .Select(pos => new TileData(pos, this.Covered, color: this.Covered.Color * 0.75f));
+                groups.Add(new TileGroup(tiles, outerBorderColor: this.SelectedColor, shouldExport: false));
             }
+
+            return groups.ToArray();
         }
 
 

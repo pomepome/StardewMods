@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.Automate.Framework;
 using Pathoschild.Stardew.Automate.Framework.Models;
 using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.Messages;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -55,22 +56,26 @@ namespace Pathoschild.Stardew.Automate
         public override void Entry(IModHelper helper)
         {
             // read data file
+            const string dataPath = "assets/data.json";
             DataModel data = null;
             try
             {
-                data = this.Helper.Data.ReadJsonFile<DataModel>("data.json");
+                data = this.Helper.Data.ReadJsonFile<DataModel>(dataPath);
                 if (data?.FloorNames == null)
-                    this.Monitor.Log("The data.json file seems to be missing or invalid. Floor connectors will be disabled.", LogLevel.Error);
+                    this.Monitor.Log($"The {dataPath} file seems to be missing or invalid. Floor connectors will be disabled.", LogLevel.Error);
             }
             catch (Exception ex)
             {
-                this.Monitor.Log($"The data.json file seems to be invalid. Floor connectors will be disabled.\n{ex}", LogLevel.Error);
+                this.Monitor.Log($"The {dataPath} file seems to be invalid. Floor connectors will be disabled.\n{ex}", LogLevel.Error);
             }
 
-            // init
+            // read config
             this.Config = helper.ReadConfig<ModConfig>();
-            this.Keys = this.Config.Controls.ParseControls(this.Monitor);
-            this.Factory = new MachineGroupFactory();
+            this.Config.MachinePriority = new Dictionary<string, int>(this.Config.MachinePriority, StringComparer.OrdinalIgnoreCase);
+
+            // init
+            this.Keys = this.Config.Controls.ParseControls(helper.Input, this.Monitor);
+            this.Factory = new MachineGroupFactory(this.Config);
             this.Factory.Add(new AutomationFactory(
                 connectors: this.Config.ConnectorNames,
                 automateShippingBin: this.Config.AutomateShippingBin,
@@ -91,6 +96,7 @@ namespace Pathoschild.Stardew.Automate
             helper.Events.World.TerrainFeatureListChanged += this.OnTerrainFeatureListChanged;
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
+            helper.Events.Multiplayer.ModMessageReceived += this.OnModMessageReceived;
 
             // log info
             this.Monitor.VerboseLog($"Initialized with automation every {this.Config.AutomationInterval} ticks.");
@@ -254,7 +260,7 @@ namespace Pathoschild.Stardew.Automate
             try
             {
                 // toggle overlay
-                if (Context.IsPlayerFree && this.Keys.ToggleOverlay.Contains(e.Button))
+                if (Context.IsPlayerFree && this.Keys.ToggleOverlay.JustPressedUnique())
                 {
                     if (this.CurrentOverlay != null)
                         this.DisableOverlay();
@@ -265,6 +271,32 @@ namespace Pathoschild.Stardew.Automate
             catch (Exception ex)
             {
                 this.HandleError(ex, "handling key input");
+            }
+        }
+
+        /// <summary>Raised after a mod message is received over the network.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
+        {
+            // update automation if chest options changed
+            if (Context.IsMainPlayer && e.FromModID == "Pathoschild.ChestsAnywhere" && e.Type == nameof(AutomateUpdateChestMessage))
+            {
+                var message = e.ReadAs<AutomateUpdateChestMessage>();
+                var location = Game1.getLocationFromName(message.LocationName);
+                var player = Game1.getFarmer(e.FromPlayerID);
+
+                string label = player != Game1.MasterPlayer
+                    ? $"{player.Name}/{e.FromModID}"
+                    : e.FromModID;
+
+                if (location != null)
+                {
+                    this.Monitor.Log($"Received chest update from {label} for chest at {message.LocationName} ({message.Tile}), updating machines.");
+                    this.ReloadQueue.Add(location);
+                }
+                else
+                    this.Monitor.Log($"Received chest update from {label} for chest at {message.LocationName} ({message.Tile}), but no such location was found.");
             }
         }
 
@@ -319,7 +351,7 @@ namespace Pathoschild.Stardew.Automate
         private void EnableOverlay()
         {
             if (this.CurrentOverlay == null)
-                this.CurrentOverlay = new OverlayMenu(this.Helper.Events, this.Helper.Input, this.Factory.GetMachineGroups(Game1.currentLocation));
+                this.CurrentOverlay = new OverlayMenu(this.Helper.Events, this.Helper.Input, this.Helper.Reflection, this.Factory.GetMachineGroups(Game1.currentLocation));
         }
 
         /// <summary>Reset the overlay if it's being shown.</summary>

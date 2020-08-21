@@ -1,11 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
-using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewModdingAPI;
 using StardewValley;
-using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace Pathoschild.Stardew.DataLayers.Layers
 {
@@ -35,8 +33,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <param name="translations">Provides translations in stored in the mod folder's i18n folder.</param>
         /// <param name="config">The data layer settings.</param>
         /// <param name="mods">Handles access to the supported mod integrations.</param>
-        public MachineLayer(ITranslationHelper translations, LayerConfig config, ModIntegrations mods)
-            : base(translations.Get("machines.name"), config)
+        /// <param name="input">The API for checking input state.</param>
+        /// <param name="monitor">Writes messages to the SMAPI log.</param>
+        public MachineLayer(ITranslationHelper translations, LayerConfig config, ModIntegrations mods, IInputHelper input, IMonitor monitor)
+            : base(translations.Get("machines.name"), config, input, monitor)
         {
             this.Legend = new[]
             {
@@ -49,23 +49,27 @@ namespace Pathoschild.Stardew.DataLayers.Layers
 
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
         /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override IEnumerable<TileGroup> Update(GameLocation location, Rectangle visibleArea, Vector2 cursorTile)
+        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
         {
             // get tiles by color
             IDictionary<string, TileData[]> tiles = this
-                .GetTiles(location, visibleArea)
+                .GetTiles(location, visibleArea, visibleTiles)
                 .GroupBy(p => p.Type.Id)
                 .ToDictionary(p => p.Key, p => p.ToArray());
 
             // create tile groups
-            foreach (LegendEntry type in new[] { this.Empty, this.Processing, this.Finished })
-            {
-                if (!tiles.TryGetValue(type.Id, out TileData[] groupTiles))
-                    groupTiles = new TileData[0];
-                yield return new TileGroup(groupTiles, outerBorderColor: type.Color);
-            }
+            return new[] { this.Empty, this.Processing, this.Finished }
+                .Select(type =>
+                {
+                    if (!tiles.TryGetValue(type.Id, out TileData[] groupTiles))
+                        groupTiles = new TileData[0];
+
+                    return new TileGroup(groupTiles, outerBorderColor: type.Color);
+                })
+                .ToArray();
         }
 
 
@@ -74,11 +78,12 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
-        private IEnumerable<TileData> GetTiles(GameLocation location, Rectangle visibleArea)
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
+        private IEnumerable<TileData> GetTiles(GameLocation location, Rectangle visibleArea, Vector2[] visibleTiles)
         {
             IDictionary<Vector2, int> machineStates = this.Mods.Automate.GetMachineStates(location, visibleArea);
-            foreach (Vector2 tile in visibleArea.GetTiles())
+            foreach (Vector2 tile in visibleTiles)
             {
                 LegendEntry type = null;
                 if (machineStates.TryGetValue(tile, out int state))

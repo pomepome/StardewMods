@@ -1,6 +1,41 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.9.1
+Released 02 August 2020.
+
+* Fixed harvest speed option temporarily speeding up the Tractor Mod tractor while harvesting.
+
+## 1.9
+Released 03 July 2020.
+
+* Added support for...
+  * horse mount/dismount animations;
+  * crop harvest animations.
+* Added integration with Generic Mod Config Menu.
+
+## 1.8
+Released 02 May 2020.
+
+* Added support for fractional multipliers like 1.5 times faster (thanks to seraku24!).
+
+## 1.7.5
+Released 27 December 2019.
+
+* Fixed option to disable eat/drink confirmation no longer affecting drinks.
+
+## 1.7.4
+Released 15 December 2019.
+
+* Fixed option to disable eat/drink confirmation also affecting some other dialogues.
+
+## 1.7.3
+Released 15 December 2019.
+
+* Fixed option to disable eat/drink confirmation...
+  * not working correctly in Stardew Valley 1.4;
+  * ignored if the eat/drink animation is set to default speed.
+
 ## 1.7.2
 Released 26 November 2019.
 

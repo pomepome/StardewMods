@@ -1,6 +1,27 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.12.1
+Released 02 May 2020.
+
+* Improved translations. Thanks to Annosz (added Hungarian) and D0n-A (updated Russian)!
+
+## 1.12
+Released 08 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + OemTilde`).
+* Improved translations. Thanks to Enaium (updated Chinese) and Hesper (updated Korean)!
+
+## 1.11.2
+Released 01 February 2020.
+
+* Improved translations. Thanks to jahangmar (updated German)!
+
+## 1.11.1
+Released 27 December 2019.
+
+* Improved translations. Thanks to L30Bola (updated Portuguese) and PlussRolf (updated Spanish)!
+
 ## 1.11
 Released 26 November 2019.
 

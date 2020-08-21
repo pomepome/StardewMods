@@ -59,9 +59,13 @@
     "machines.processing": "Processing",
     "machines.finished": "Finished",
 
+    // tile grid
+    "grid.name": "Tile Grid",
+
     // tillable
     "tillable.name": "Tillable",
     "tillable.tillable": "Tillable",
+    "tillable.tilled": "Tilled",
     "tillable.occupied": "Occupied",
     "tillable.not-tillable": "Not Tillable"
 }

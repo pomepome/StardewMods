@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Pathoschild.Stardew.Common.Input;
 using StardewValley;
 
 namespace Pathoschild.Stardew.DataLayers.Framework
@@ -22,14 +22,21 @@ namespace Pathoschild.Stardew.DataLayers.Framework
         /// <summary>The legend entries to display.</summary>
         LegendEntry[] Legend { get; }
 
+        /// <summary>The keys which activate the layer.</summary>
+        KeyBinding ShortcutKey { get; }
+
+        /// <summary>Whether to always show the tile grid.</summary>
+        bool AlwaysShowGrid { get; }
+
 
         /*********
         ** Methods
         *********/
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
         /// <param name="cursorTile">The tile position under the cursor.</param>
-        IEnumerable<TileGroup> Update(GameLocation location, Rectangle visibleArea, Vector2 cursorTile);
+        TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile);
     }
 }

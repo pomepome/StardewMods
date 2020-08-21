@@ -32,12 +32,11 @@ namespace ContentPatcher.Framework.Migrations
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="version">The content pack version.</param>
-        /// <param name="validVersions">The valid format versions.</param>
         /// <param name="migrations">The migrations to apply.</param>
-        public AggregateMigration(ISemanticVersion version, string[] validVersions, IMigration[] migrations)
+        public AggregateMigration(ISemanticVersion version, IMigration[] migrations)
         {
             this.Version = version;
-            this.ValidVersions = new HashSet<string>(validVersions);
+            this.ValidVersions = new HashSet<string>(migrations.Select(p => p.Version.ToString()));
             this.Migrations = migrations.Where(m => m.Version.IsNewerThan(version)).ToArray();
         }
 
@@ -70,12 +69,12 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="lexToken">The lexical token to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        public bool TryMigrate(ref ILexToken lexToken, out string error)
+        public bool TryMigrate(ILexToken lexToken, out string error)
         {
             // apply migrations
             foreach (IMigration migration in this.Migrations)
             {
-                if (!migration.TryMigrate(ref lexToken, out error))
+                if (!migration.TryMigrate(lexToken, out error))
                     return false;
             }
 
@@ -88,7 +87,7 @@ namespace ContentPatcher.Framework.Migrations
         /// <param name="tokenStr">The tokenized string to migrate.</param>
         /// <param name="error">An error message which indicates why migration failed (if any).</param>
         /// <returns>Returns whether migration succeeded.</returns>
-        public bool TryMigrate(IParsedTokenString tokenStr, out string error)
+        public bool TryMigrate(IManagedTokenString tokenStr, out string error)
         {
             // apply migrations
             foreach (IMigration migration in this.Migrations)

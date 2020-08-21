@@ -9,6 +9,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
 {
     /// <summary>A mill machine that accepts input and provides output.</summary>
+    /// <remarks>See the game's default logic in <see cref="Mill.doAction"/>.</remarks>
     internal class MillMachine : BaseMachine<Mill>
     {
         /*********
@@ -42,8 +43,12 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
         /// <summary>Get the machine's processing state.</summary>
         public override MachineState GetState()
         {
+            if (this.Machine.isUnderConstruction())
+                return MachineState.Disabled;
+
             if (this.Output.items.Any(item => item != null))
                 return MachineState.Done;
+
             return this.InputFull()
                 ? MachineState.Processing
                 : MachineState.Empty; // 'empty' insofar as it will accept more input, not necessarily empty
@@ -64,9 +69,9 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
             if (this.InputFull())
                 return false;
 
-            // fill input with wheat (262) and beets (284)
+            // fill input with wheat (262), beets (284), and rice (271)
             bool anyPulled = false;
-            foreach (ITrackedStack stack in input.GetItems().Where(i => i.Sample.ParentSheetIndex == 262 || i.Sample.ParentSheetIndex == 284))
+            foreach (ITrackedStack stack in input.GetItems().Where(i => i.Type == ItemType.Object && (i.Sample.ParentSheetIndex == 262 || i.Sample.ParentSheetIndex == 284 || i.Sample.ParentSheetIndex == 271)))
             {
                 // add item
                 bool anyAdded = this.TryAddInput(stack);

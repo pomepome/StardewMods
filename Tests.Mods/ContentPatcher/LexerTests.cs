@@ -41,7 +41,7 @@ namespace Pathoschild.Stardew.Tests.Mods.ContentPatcher
         )]
         [TestCase(
             "  inner whitespace with ~!@#$%^&*()_=[]{}':;\"',.<>/ characters",
-            "[  inner whitespace with ~!@#$%^&*()_=[]{}']<InputArgSeparator::>[;\"',.<>/ characters]",
+            "[  inner whitespace with ~!@#$%^&*()_=[]{}']<PositionalInputArgSeparator::>[;\"',.<>/ characters]",
             "[  inner whitespace with ~!@#$%^&*()_=[]{}':;\"',.<>/ characters]"
         )]
         [TestCase(
@@ -56,7 +56,7 @@ namespace Pathoschild.Stardew.Tests.Mods.ContentPatcher
         )]
         [TestCase(
             " {{  Relationship : Abigail }}   ",
-            "[ ]<StartToken:{{>[  Relationship ]<InputArgSeparator::>[ Abigail ]<EndToken:}}>[   ]",
+            "[ ]<StartToken:{{>[  Relationship ]<PositionalInputArgSeparator::>[ Abigail ]<EndToken:}}>[   ]",
             "[ ]<Token:Relationship input=<input:[Abigail]>>[   ]"
         )]
         public void ParseTokenizedString(string input, string expectedBits, string expectedTokens)
@@ -105,21 +105,21 @@ namespace Pathoschild.Stardew.Tests.Mods.ContentPatcher
                             StringBuilder str = new StringBuilder();
 
                             str.Append($"<{token.Type}:{token.Name}");
-                            if (token.InputArg != null)
-                                str.Append($" input={this.GetComparableShorthand(token.InputArg)}");
+                            if (token.InputArgs != null)
+                                str.Append($" input={this.GetComparableShorthand(token.InputArgs)}");
 
                             str.Append(">");
                             return str.ToString();
                         }
 
-                    case LexTokenInputArg inputArg:
-                        return $"<input:{this.GetComparableShorthand(inputArg.Parts)}>";
+                    case LexTokenInput inputArgs:
+                        return $"<input:{this.GetComparableShorthand(inputArgs.Parts)}>";
 
                     case LexTokenLiteral _:
-                        return $"[{bit.Text}]";
+                        return $"[{bit}]";
 
                     default:
-                        return $"<{bit.Type}:{bit.Text}>";
+                        return $"<{bit.Type}:{bit}>";
                 }
             }));
         }

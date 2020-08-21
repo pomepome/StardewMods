@@ -1,6 +1,8 @@
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.Input;
 using Pathoschild.Stardew.DataLayers.Framework;
+using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
@@ -22,8 +24,14 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Whether to update the layer when the set of visible tiles changes.</summary>
         public bool UpdateWhenVisibleTilesChange { get; }
 
+        /// <summary>The keys which activate the layer.</summary>
+        public KeyBinding ShortcutKey { get; }
+
         /// <summary>The legend entries to display.</summary>
         public LegendEntry[] Legend { get; protected set; }
+
+        /// <summary>Whether to always show the tile grid.</summary>
+        public bool AlwaysShowGrid { get; protected set; }
 
 
         /*********
@@ -31,9 +39,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tiles currently visible on the screen.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
         /// <param name="cursorTile">The tile position under the cursor.</param>
-        public abstract IEnumerable<TileGroup> Update(GameLocation location, Rectangle visibleArea, Vector2 cursorTile);
+        public abstract TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile);
 
 
         /*********
@@ -42,11 +51,14 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Construct an instance.</summary>
         /// <param name="name">The data layer name.</param>
         /// <param name="config">The data layers settings.</param>
-        protected BaseLayer(string name, LayerConfig config)
+        /// <param name="input">The API for checking input state.</param>
+        /// <param name="monitor">Writes messages to the SMAPI log.</param>
+        protected BaseLayer(string name, LayerConfig config, IInputHelper input, IMonitor monitor)
         {
             this.Name = name;
             this.UpdateTickRate = (int)(60 / config.UpdatesPerSecond);
             this.UpdateWhenVisibleTilesChange = config.UpdateWhenViewChange;
+            this.ShortcutKey = CommonHelper.ParseButtons(config.ShortcutKey, input, monitor, this.Name);
         }
 
         /// <summary>Get the dirt instance for a tile, if any.</summary>

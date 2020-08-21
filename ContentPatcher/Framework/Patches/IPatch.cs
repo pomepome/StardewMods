@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using ContentPatcher.Framework.Conditions;
-using ContentPatcher.Framework.Tokens;
 using StardewModdingAPI;
 
 namespace ContentPatcher.Framework.Patches
@@ -11,11 +10,14 @@ namespace ContentPatcher.Framework.Patches
         /*********
         ** Accessors
         *********/
-        /// <summary>A unique name for this patch shown in log messages.</summary>
-        string LogName { get; }
+        /// <summary>The path to the patch from the root content file.</summary>
+        LogPathBuilder Path { get; }
 
         /// <summary>The patch type.</summary>
         PatchType Type { get; }
+
+        /// <summary>The parent patch for which this patch was loaded, if any.</summary>
+        IPatch ParentPatch { get; }
 
         /// <summary>The content pack which requested the patch.</summary>
         ManagedContentPack ContentPack { get; }
@@ -31,6 +33,9 @@ namespace ContentPatcher.Framework.Patches
 
         /// <summary>The raw asset name to intercept, including tokens.</summary>
         ITokenString RawTargetAsset { get; }
+
+        /// <summary>When the patch should be updated.</summary>
+        UpdateRate UpdateRate { get; }
 
         /// <summary>The conditions which determine whether this patch should be applied.</summary>
         Condition[] Conditions { get; }
@@ -56,9 +61,6 @@ namespace ContentPatcher.Framework.Patches
         /// <param name="asset">The asset to edit.</param>
         /// <exception cref="System.NotSupportedException">The current patch type doesn't support editing assets.</exception>
         void Edit<T>(IAssetData asset);
-
-        /// <summary>Get the context which provides tokens for this patch, including patch-specific tokens like <see cref="ConditionType.Target"/>.</summary>
-        IContext GetPatchContext();
 
         /// <summary>Get a human-readable list of changes applied to the asset for display when troubleshooting.</summary>
         IEnumerable<string> GetChangeLabels();
